@@ -1,0 +1,38 @@
+#! /bin/bash
+echo "Enter target IP:"
+read ip_addr
+echo "Beginning the hunt.."
+printf "\----- RECON REPORT -----\n\n" > report
+#will need nmap. ref 1 on readME
+nmap $ip_addr | tail -n +5 | head -n -3 
+#you can choose to append data from line 7 to the report, I just want the full nmap scan added at the end. 
+while read line
+do
+    if [$line == *open* -a $line == *http*]
+    then
+        echo "Go Go Powerbuster"
+        #will need Gobuster installed. ref 2 on ReadME
+        gobuster dir -u $ip_addr -w /usr/share/wordlists/dirb/common.txt -qz > drone1
+        echo "Running WhatWeb..."
+        #will need whatweb installed. ref 3 on ReadME
+        whatweb $ip_addr -v > drone2
+        fi
+done < results
+
+if [ -e drone1 ]
+then
+        printf "\n----- DIRS -----\n\n" >> report
+        cat drone1 >> report
+        rm drone1
+fi
+
+if [ -e drone2 ]
+then
+    printf "\n----- WEB -----\n\n" >> report
+        cat drone2 >> report
+        rm drone2
+fi
+then
+    printf "\n----- NMAP -----\n\n" >> report
+        nmap -sS $ip_addr >> report
+cat results
