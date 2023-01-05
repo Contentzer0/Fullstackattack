@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+#Fullstack Academy Team There ... #! Modified from original Author: Eli
+#A script for scraping system information
+​
+clear
+​
+echo "#######                                                              
+#                                     "
+echo "#       #    # #      #       ####  #####   ##    ####  #    #      
+# #   ##### #####   ##    ####  #    # "
+echo "#       #    # #      #      #        #    #  #  #    # #   #      #   
+#    #     #    #  #  #    # #   #  "
+echo "#####   #    # #      #       ####    #   #    # #      ####      #     
+#   #     #   #    # #      ####   "
+echo "#       #    # #      #           #   #   ###### #      #  #      
+#######   #     #   ###### #      #  #   "
+echo "#       #    # #      #      #    #   #   #    # #    # #   #     #     
+#   #     #   #    # #    # #   #  "
+echo "#        ####  ###### ######  ####    #   #    #  ####  #    #    #     
+#   #     #   #    #  ####  #    # "
+echo " ^-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+- - - --> (Fullstack Academy Recon Tool)"
+​
+​
+# ----------Options---------- #
+​
+while [ $# -gt 0 ];
+do
+	case "$1" in
+		-h|--help)
+			echo "Simple system recon bash script that fetches 
+some system info and writes the info to files (or as file names), zips 
+them together, and cleans up."
+			echo "Default: 	Internet connectivity, network 
+adapter info, kernal info, running processes, installed apps, open ports, 
+users, and startup apps, writable locations, files with sticky bit (owner 
+and group) set, mount information"
+			echo ""
+			echo "Options:"
+			echo "-h, --help	Show this menu"
+			echo "-v, --verbose	Add verbosity"
+			exit 0
+			;;
+		-v|--verbose)
+			set -x
+			break
+			;;
+		*)
+			break
+			;;
+	esac
+done			
+​
+​
+# ----------Body---------- #
+​
+#Internet access
+echo "--> Checking for internet... Pinging Google.com DNS"
+​
+ping -c1 -w5 8.8.8.8 && internet="Online" || internet="Offline"
+#internet=$?
+​
+#if [ "$internet" != 0 ]
+#then
+#	internet="internet-failed"
+#else 
+#	internet="internet-confirmed"
+#fi
+​
+​
+#Hostname
+echo "--> Getting hostname..."
+host=$(hostname)
+​
+​
+#Network adapter information
+echo "--> Getting net adapter info..."
+netinfo=$(ip addr)
+​
+#Get the IP address of the local host
+echo "--> Using net adaptor info for port scan..."
+ip_addr=$(ip addr | grep "inet " | cut -d" " -f6 | cut -d"/" -f1)
+​
+#Extract the subnet from the IP address
+subnet=$(echo $ip_addr | cut -d"." -f1-3).0/24
+​
+#Perform a ping scan of the subnet
+nmap -sn -n $subnet > network-devices.txt
+​
+#Routing table
+echo "--> Getting routing table..."
+route=$(ip route)
+​
+​
+#System information
+echo "--> Getting system info..."
+kernal=$(uname -v) 
+​
+#Network Scan
+echo "--> Scanning neighbors..."
+​
+​
+#Process info 
+echo "--> Getting process info..."
+processes=$(systemctl | grep running)
+​
+​
+#Installed apps
+echo "--> Getting program list..."
+declare -A os;
+​
+os[/etc/redhat-release]="dnf list installed" 
+os[/etc/arch-release]="pacman -Q" 
+os[/etc/SuSE-release]="zypper search --installed-only"
+os[/etc/debian_version]="dpkg -l"
+​
+declare apps;
+for pac in "${!os[@]}"
+do
+	if [ -f $pac ] 
+	then
+		 apps=$(${os[$pac]})
+	fi
+done
+​
+​
+#Listening internet ports
+echo "--> Getting socket statistics..."
+ports=$(ss -lutn)
+​
+​
+#Users
+echo "--> Getting users..."
+users=$(cat /etc/passwd)
+shadow=$(cat etc/shadow)
+​
+​
+#Startup apps
+echo "--> Getting startup apps..."
+startup=$(systemctl list-unit-files --state=enabled)
+​
+​
+#Writable files
+echo "--> Finding writable locations..."
+writable=$(find / -perm -222 -type d 2>/dev/null)
+​
+​
+#Group sticky bit
+echo "--> Finding files with group sticky bit..." 
+gbit=$(find / -perm -g=s -type f 2>/dev/null)
+​
+​
+#Owner sticky bit
+echo "--> Finding files with owner sticky bit..."
+obit=$(find / -perm -u=s -type f 2>/dev/null)
+​
+​
+#Mount information
+echo "--> Getting mount information..."
+mouted=$(mount)
+​
+​
+#Write and zip
+echo "--> Writing files..."
+mkdir /tmp/fsattack
+​
+touch "/tmp/fsattack/$internet-$host".txt
+echo "$netinfo" > /tmp/fsattack/netinfo-$host.txt
+echo "$route" > /tmp/fsattack/route-$host.txt
+touch "/tmp/fsattack/$kernal-$host".txt
+echo "$processes" > /tmp/fsattack/proc-$host.txt
+echo "$apps" > /tmp/fsattack/apps-$host.txt
+echo "$ports" > /tmp/fsattack/ports-$host.txt
+echo "$users & $shadow" > /tmp/fsattack/users-$host.txt
+echo "$startup" > /tmp/fsattack/startup-$host.txt
+echo "$writable" > /tmp/fsattack/writable-$host.txt
+echo "$gbit" > /tmp/fsattack/gbit-$host.txt
+echo "$obit" > /tmp/fsattack/obit-$host.txt
+echo "$mounted" > /tmp/fsattack/mounted-$host.txt
+​
+echo "--> Zipping up..."
+zip -j $host.zip /tmp/fsattack/* > /dev/null
+​
+echo "--> Cleaning up"
+rm -r /tmp/fsattack
+set +x
+​
+echo "--> Scan Complete"
+echo ""
+echo ""
