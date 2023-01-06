@@ -35,4 +35,5 @@ fi
 then
     printf "\n----- NMAP -----\n\n" >> report
         nmap -sS $ip_addr >> report
+fi        
 cat results
